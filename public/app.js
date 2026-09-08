@@ -212,6 +212,7 @@ async function startCamera() {
       }
     });
     localVideo.srcObject = localStream;
+    updatePreviewTransform();
     await localVideo.play().catch(() => {});
     setStatusDot(hostDot, true);
     return true;
@@ -333,12 +334,14 @@ joinBtn.addEventListener('click', async () => {
     call.on('stream', stream => {
       remoteVideo.srcObject = stream;
       viewerPlaceholder.style.display = 'none';
+      updateVideoAspect(remoteVideo, document.querySelector('.viewer-video-wrap'));
       viewerStatus.textContent = stream.getAudioTracks().length ? t('liveConnected') : t('videoError');
       setStatusDot(viewerDot, true);
-      remoteVideo.muted = false;
+      // Start muted so desktop browsers can autoplay the received video.
+      remoteVideo.muted = true;
       remoteVideo.volume = 1;
       remoteVideo.play().then(() => {
-        soundBtn.textContent = t('muteSound');
+        soundBtn.textContent = t('enableSound');
       }).catch(() => {
         soundBtn.textContent = t('enableSound');
         showToast(t('soundBlocked'));
@@ -397,6 +400,23 @@ copyRoomBtn.addEventListener('click', async () => {
     copyHint.textContent = t('copyHint');
   }, 1600);
 });
+
+function updatePreviewTransform() {
+  // Mirror only the front/selfie camera preview.
+  // The rear camera preview should match the actual outgoing image.
+  localVideo.style.transform = facingMode === 'user' ? 'scaleX(-1)' : 'none';
+}
+
+function updateVideoAspect(video, wrapper) {
+  const setAspect = () => {
+    if (video.videoWidth && video.videoHeight) {
+      wrapper.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
+    }
+  };
+
+  if (video.readyState >= 1) setAspect();
+  else video.addEventListener('loadedmetadata', setAspect, { once: true });
+}
 
 flipBtn.addEventListener('click', async () => {
   if (!localStream) return;
